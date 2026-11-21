@@ -73,3 +73,38 @@ test('si existen las dos versiones, manda el fichero de la raíz de la spec', ()
   })
   assert.equal(estado(raiz).specs[0].id, 'PLANO')
 })
+
+test('un fichero del plan que no está en la tabla del índice se cuenta y se avisa', () => {
+  const raiz = proyecto({
+    [`${S}/requirements/requirements.md`]: spec({ id: 'G' }),
+    [`${S}/tasks/tasks.md`]: '# Tasks\n\n| # | Fichero |\n|---|---|\n| 1 | [O01](oleadas/O01.md) | |\n',
+    [`${S}/tasks/oleadas/O01.md`]: '#### Oleada O01\n- [x] TASK-001 · Uno\n',
+    // Nueva, sin fila en la tabla y sin título de oleada: la oleada sale del nombre.
+    [`${S}/tasks/oleadas/O45-paquetes.md`]: '- [ ] TASK-450 · Nueva\n- [x] TASK-451 · Otra\n',
+    // Sin tareas: no cuenta ni avisa.
+    [`${S}/tasks/notas.md`]: '# Notas\n',
+  })
+  const e = estado(raiz)
+  const t = e.specs[0].tareas
+  assert.deepEqual(t.lista.map(x => [x.id, x.ola]), [
+    ['TASK-001', 'O01'],
+    ['TASK-450', 'O45'],
+    ['TASK-451', 'O45'],
+  ])
+  assert.deepEqual(t.porOla.at(-1), { ola: 'O45', total: 2, implementadas: 1 })
+  assert.deepEqual(e.avisos.map(a => a.mensaje), [
+    `${S}/tasks/oleadas/O45-paquetes.md no está en la tabla de ${S}/tasks/tasks.md: sus 2 tareas se cuentan, pero añade su fila al índice`,
+  ])
+})
+
+test('un fichero suelto que repite tareas de la tabla da aviso de tarea repetida', () => {
+  const raiz = proyecto({
+    [`${S}/requirements/requirements.md`]: spec({ id: 'G' }),
+    [`${S}/tasks/tasks.md`]: '# Tasks\n\n| # | Fichero |\n|---|---|\n| 1 | [O01](O01.md) | |\n',
+    [`${S}/tasks/O01.md`]: '- [x] TASK-001 · Uno\n',
+    [`${S}/tasks/copia-O01.md`]: '- [x] TASK-001 · Uno\n',
+  })
+  const e = estado(raiz)
+  assert.equal(e.specs[0].tareas.total, 1)
+  assert.ok(e.avisos.some(a => /tarea repetida en el cuerpo: TASK-001/.test(a.mensaje)))
+})

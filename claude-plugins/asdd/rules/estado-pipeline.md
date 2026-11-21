@@ -80,7 +80,7 @@ When `requirements.md` or `tasks.md` is not at the root of the spec folder, the 
 
 The index body is read once, at its first row, even when the table lists it several times ("parte 1, 2…"); put task lines in the linked files, or give each task its `**Oleada:**`.
 
-Add every new file (a new wave, for example) to the index table; a file missing from the table is not read.
+Add every new file (a new wave, for example) to the index table. Until it is added, the generator still counts the tasks of any `.md` under the `tasks/` folder that the table does not list, each file on its own (its wave comes from its headings, its `**Oleada:**` fields or its file name, `O45-paquetes.md` → `O45`), and reports a warning naming the file. The generator never edits the index.
 
 ## Who may write what
 

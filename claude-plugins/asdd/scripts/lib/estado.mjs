@@ -145,6 +145,32 @@ export function ficherosDelIndice(indice, contenidoIndice, carpetaSpec) {
   return ficheros
 }
 
+/** Todos los .md bajo `dir` (sin seguir enlaces simbólicos a carpetas), ordenados. */
+function markdownsBajo(dir) {
+  const encontrados = []
+  const recorrer = d => {
+    let entradas
+    try {
+      entradas = fs.readdirSync(d, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const e of entradas) {
+      if (e.name.startsWith('.')) continue
+      const ruta = path.join(d, e.name)
+      if (e.isDirectory()) recorrer(ruta)
+      else if ((e.isFile() || e.isSymbolicLink()) && e.name.endsWith('.md')) encontrados.push(ruta)
+    }
+  }
+  recorrer(dir)
+  return encontrados.sort((a, b) => a.localeCompare(b, 'es', { numeric: true }))
+}
+
+/** "oleadas/O45-paquetes.md" → "O45" */
+export function olaDelNombre(fichero) {
+  return path.basename(fichero).match(/(?:^|[^A-Za-z0-9])(O\d{2,})(?![0-9])/)?.[1] ?? null
+}
+
 /** Lee solo el principio del fichero y devuelve su cabecera (o null). */
 function leerCabeceraDeFichero(fichero) {
   const st = fs.statSync(fichero, { throwIfNoEntry: false })
@@ -355,6 +381,31 @@ function leerTareas(rutas, carpeta, spec, avisos) {
     }
   }
   const cuerpo = leerTareasDelCuerpo(lineasCuerpo)
+  if (ubicacion?.dividido) {
+    // Ficheros del plan que aún no están en la tabla del índice (una oleada recién
+    // creada): se cuentan igual, cada uno por separado, y se avisa para que se añada
+    // su fila. No se escribe nada.
+    const enTabla = new Set(ficherosDelIndice(fichero, contenido, carpeta))
+    for (const suelto of markdownsBajo(path.dirname(fichero))) {
+      if (enTabla.has(path.resolve(suelto)) || !dentroDeVerdad(carpeta, suelto)) continue
+      let texto
+      try {
+        texto = leerMarkdown(suelto)
+      } catch (e) {
+        avisar(`${relativa(rutas.raiz, suelto)}: ${e.message}`)
+        continue
+      }
+      const tareas = leerTareasDelCuerpo((texto ?? '').replace(/^\uFEFF/, '').split(/\r\n|\r|\n/))
+      if (tareas.length === 0) continue
+      const ola = olaDelNombre(suelto)
+      for (const t of tareas) if (!t.ola) t.ola = ola
+      cuerpo.push(...tareas)
+      avisar(
+        `${relativa(rutas.raiz, suelto)} no está en la tabla de ${relativa(rutas.raiz, fichero)}: ` +
+          `${tareas.length === 1 ? 'su tarea se cuenta' : `sus ${tareas.length} tareas se cuentan`}, pero añade su fila al índice`,
+      )
+    }
+  }
   const lista = cab?.datos.tareas
 
   // Modo "cuerpo": sin cabecera, sin lista, o "tareas: cuerpo".
