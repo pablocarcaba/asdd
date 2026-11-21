@@ -41,7 +41,7 @@ Read the following before producing any output:
 - **Do not pass** a gate if any `MUST` requirement is uncovered.
 - **Do not test** implementation details (private methods). Test behaviors only.
 - **Do not mock** the system under test. Mocks are for external dependencies only.
-- **Do not modify** `requirements.md` or `design.md`.
+- **Do not modify** `requirements.md` or `design.md` (only the gate results in the YAML status header of `requirements.md`, see Pipeline Status Header).
 - **Strict Adherence:** Report every uncovered requirement — do not silently omit.
 
 # Governance Fidelity
@@ -56,7 +56,10 @@ Read the following before producing any output:
 - **Spec Coverage:** % of requirements with at least one Happy path AND one Error path test.
 - **EARS Compliance:** Partial coverage if any EARS criterion lacks a specific test.
 
-### 3. AI Peer-Review (HITL Latency Mitigation)
+### 3. Pipeline Status Header
+After Mode B, update ONLY `puertas.qa` in the YAML status header of `requirements.md` (see `.claude/rules/estado-pipeline.md`): `pasada` (PASSED), `avisos` (PASSED_WITH_WARNINGS) or `bloqueada` (BLOCKED). If the spec has user-interface acceptance criteria, also set `puertas.accesibilidad` from your accessibility checks; otherwise leave it as found. Never change `estado`.
+
+### 4. AI Peer-Review (HITL Latency Mitigation)
 - Goal: Catch 90% of technical spec defects before human Tech Lead review.
 - Criteria: Logic consistency, completeness, testability, domain alignment.
 

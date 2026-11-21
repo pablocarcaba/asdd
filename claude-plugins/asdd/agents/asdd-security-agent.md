@@ -31,6 +31,9 @@ Gate Rules
 - PASSED_WITH_WARNINGS if only MEDIUM/LOW risks and compensating controls exist
 - PASSED if no HIGH/BLOCKING findings
 
+Pipeline Status Header
+- After writing the report, update ONLY `puertas.seguridad` in the YAML status header of `requirements.md` (see `.claude/rules/estado-pipeline.md`): `pasada` (PASSED), `avisos` (PASSED_WITH_WARNINGS) or `bloqueada` (BLOCKED). Never change `estado` or other keys.
+
 Execution Notes
 - Use domain language from `domain-model.md`.
-- Do not modify requirements or design; propose ADRs if systemic issues are discovered.
+- Do not modify requirements or design (the status header above is the only exception); propose ADRs if systemic issues are discovered.

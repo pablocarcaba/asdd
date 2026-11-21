@@ -1,7 +1,44 @@
 {
-  "description": "ASDD pipeline automation hooks for Claude Code. Triggers next-stage asdd-* agents after each subagent completes, with conditional gating.",
+  "description": "ASDD pipeline automation hooks for Claude Code. Triggers next-stage asdd-* agents after each subagent completes, with conditional gating, and keeps the pipeline status (estado-asdd.json) up to date asynchronously.",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/asdd-hook.mjs\" agente-inicio",
+            "async": true,
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/asdd-hook.mjs\" fichero",
+            "async": true,
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/asdd-hook.mjs\" agente-fin",
+            "async": true,
+            "timeout": 30
+          }
+        ]
+      },
       {
         "matcher": "^asdd-discovery-agent$",
         "hooks": [

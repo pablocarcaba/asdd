@@ -78,6 +78,17 @@ You must append a confidence assessment:
 Generate `.claude/specs/[spec-name]/tasks.md` following this structure:
 
 ```markdown
+---
+spec: [id from requirements.md header]
+version: [integer, +1 on every rewrite]
+tareas:
+  - id: TASK-001
+    titulo: [Title]
+    estado: [validada | borrador]
+    nivel: [S | M | L]
+    ola: 1
+---
+
 # Tasks: [Feature Name]
 
 Tasks version: [semver]
@@ -120,6 +131,14 @@ Last updated: [ISO date]
 |---|---|
 | REQ-001 | TASK-NNN |
 ```
+
+### Pipeline Status Header
+
+`tasks.md` MUST start with the YAML header defined in `.claude/rules/estado-pipeline.md` (template above), listing **every** `TASK-NNN` of the body, in the same order, with its wave in `ola`.
+
+- If the Task Planning Readiness Gate passes (confidence ≥ 0.85), every task starts as `estado: validada`; otherwise `estado: borrador`.
+- When resuming, keep the `estado` of tasks that are already `en_curso` or `implementada`.
+- Never write `aprobada`.
 
 ### 3. Verification
 

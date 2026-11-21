@@ -51,6 +51,19 @@ Before producing any output, you MUST discover the project state and constraints
 Generate at `.claude/specs/[spec-name]/requirements.md`:
 
 ```markdown
+---
+id: SPEC-[NNN]
+titulo: [Feature Name]
+estado: borrador
+nivel: [S | M | L]
+version: [integer, +1 on every content change]
+puertas:
+  validacion: pendiente
+  qa: pendiente
+  seguridad: pendiente
+  accesibilidad: [pendiente | no_aplica]
+---
+
 # Requirements: [Feature Name]
 
 Spec version: [semver]
@@ -83,6 +96,15 @@ Owner: [Tech Lead name]
 **Traceability:** [capability.md section]
 ```
 
+## Pipeline Status Header
+
+`requirements.md` MUST start with the YAML status header defined in `.claude/rules/estado-pipeline.md` (template above).
+
+- **New spec:** `estado: borrador`, `version: 1`, every gate `pendiente` (`accesibilidad: no_aplica` if the spec has no user interface). Pick a new `id` that is not used by any other spec.
+- **Rewrite:** keep `id`, increment `version`, set `estado: borrador` and `puertas.validacion: pendiente`. A rewrite after approval removes the approval: say so in your final message.
+- **`nivel`:** `S` (one slice, few requirements, low risk), `M` (default), `L` (several slices, cross-cutting or high risk).
+- **Never** write `estado: aprobada`; only the person approves.
+
 ## EARS Reference
 
 | Pattern | Syntax |
@@ -114,7 +136,7 @@ Owner: [Tech Lead name]
 4. **Draft:** Write EARS-compliant requirements with traceability.
 5. **Quality Gate:** Activate `anti-pattern-detection` skill. Run detection pipeline on all drafted requirements. Apply fixes for violations. If score < 0.70, set status to DRAFT.
 6. **Score:** Calculate confidence score (adjusted by anti-pattern and domain language findings).
-7. **Output:** Write `requirements.md` and propose `manifest.json` update.
+7. **Output:** Write `requirements.md` (with its status header) and propose `manifest.json` update.
 
 ## Success Criteria
 

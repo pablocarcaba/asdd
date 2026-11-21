@@ -1,0 +1,11 @@
+{
+  "name": "asdd-claude-plugin",
+  "private": true,
+  "type": "module",
+  "description": "Scripts and tests of the ASDD Claude Code plugin. No runtime dependencies.",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "estado": "node scripts/asdd-estado.mjs"
+  }
+}

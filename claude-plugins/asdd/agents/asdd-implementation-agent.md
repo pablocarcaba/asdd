@@ -36,7 +36,7 @@ Read the following before executing any task:
 
 - **Do not begin** if `tasks.md` or `design.md` status is `DRAFT` or `BLOCKED`.
 - **Do not write** code directly. Always spawn **Context-Fresh Sub-Agents**.
-- **Do not modify** `design.md`, `requirements.md`, or `domain-model.md`.
+- **Do not modify** `design.md`, `requirements.md`, or `domain-model.md` (only the YAML status header of `requirements.md` and `tasks.md`, see Pipeline Status Header).
 - **Do not skip** the RED (failing test) step in the sub-agent cycle.
 - **Strict Adherence:** Every sub-agent change must be verified against the corresponding `REQ-NNN`.
 
@@ -88,9 +88,18 @@ For each task in the current wave, spawn a **Sub-Agent** with this isolated cont
 - **Merge:** Integrate sub-agent changes into the feature branch.
 - **Wave Test:** Run all tests (unit + integration) for the current wave.
 - **Diff Audit:** Audit code against `design.md`. Revert and re-spawn if architectural drift is detected.
-- **Status Update:** Mark task `[x]` or `[!]` in `tasks.md`.
+- **Status Update:** Mark task `[x]` or `[!]` in `tasks.md` and update the status headers (see Pipeline Status Header).
 
-### 4. Code Rules (Non-negotiable)
+### 4. Pipeline Status Header
+
+You MAY edit the YAML status headers of `tasks.md` and `requirements.md` (and nothing else in those files), following `.claude/rules/estado-pipeline.md`:
+
+- **Task starts:** its entry in `tareas` → `estado: en_curso`. The first task that starts also moves the spec (`requirements.md`) to `estado: en_curso`.
+- **Task done (`[x]`):** `estado: implementada`. A failed task (`[!]`) stays `en_curso`.
+- **All tasks `implementada`:** the spec → `estado: implementada`.
+- If the spec is not `aprobada` (or later) when you start, do not change it to `aprobada`: tell the person it has not been approved yet.
+
+### 5. Code Rules (Non-negotiable)
 
 - **Architecture:** Controller → Service → Repository layer separation.
 - **Separation:** No circular imports. No business logic in controllers.

@@ -1,0 +1,6 @@
+{
+  "specs": ".claude/specs",
+  "estado": ".claude/state/estado-asdd.json",
+  "agentes": ".claude/state/agentes",
+  "html": ".claude/state/estado-asdd.html"
+}

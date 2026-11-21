@@ -35,7 +35,7 @@ Generate or update:
 - `.claude/specs/[spec-name]/spec-validation-report.md`
 - `.claude/state/manifest.json` (Update proposal)
 
-Do not modify `requirements.md`, `capability.md`, or `domain-model.md`.
+Do not modify `requirements.md`, `capability.md`, or `domain-model.md` — except the status header of `requirements.md` (see Pipeline Status Header).
 
 ## State Transition
 
@@ -45,6 +45,18 @@ At the end of your execution, propose an update to `.claude/state/manifest.json`
 3. Add a `phase_data` link to the new `spec-validation-report.md`.
 4. Append your `Validation confidence score` to the `confidence_chain`.
 5. Update `agent_heartbeats`.
+
+## Pipeline Status Header
+
+After writing the report, update ONLY the YAML status header of `requirements.md` (see `.claude/rules/estado-pipeline.md`):
+
+| Overall Status | `estado` | `puertas.validacion` |
+|---|---|---|
+| PASSED | `validada` | `pasada` |
+| PASSED_WITH_WARNINGS | `validada` | `avisos` |
+| PARTIAL or BLOCKED | keep `borrador` | `bloqueada` |
+
+Do not change `version`, `id`, `nivel` or other gates. Never write `aprobada`: after a pass, tell the person the spec is ready for their approval. If the header is missing or invalid, report it as a HIGH finding instead of inventing values.
 
 ## Validation Report Structure
 
