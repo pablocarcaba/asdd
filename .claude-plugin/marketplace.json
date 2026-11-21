@@ -1,19 +1,45 @@
 {
-  "name": "asdd",
-  "owner": { "name": "Pablo Carcaba" },
+  "name": "ffactory",
   "metadata": {
-    "description": "ASDD framework plugins: the full framework and its pipeline status side panel."
+    "description": "Official FFactory plugins for Claude Code"
+  },
+  "owner": {
+    "name": "FFactory",
+    "email": "support@ffactory.io"
   },
   "plugins": [
     {
-      "name": "asdd-panel",
-      "source": "./claude-plugins/asdd-panel",
-      "description": "Side panel with the ASDD pipeline status: phases, filters by estado and nivel, gates per spec, progress per wave and running agents. Read-only."
+      "name": "asdd",
+      "description": "Agentic Specification-Driven Development framework for Claude Code. Provides 13 specialized agents, 11 pipeline hooks, 5 discovery skills, and quality-gate rules to orchestrate AI-driven software development from intent to production.",
+      "source": "./claude-plugins/asdd",
+      "category": "productivity",
+      "version": "1.0.0",
+      "author": {
+        "name": "FFactory Team",
+        "email": "edwin@ffactory.io"
+      },
+      "homepage": "https://ffactory-inc.github.io/asdd",
+      "repository": "https://github.com/ffactory-inc/asdd",
+      "license": "MIT",
+      "keywords": ["ASDD", "specification-driven", "agentic", "pipeline", "framework", "agents", "development"],
+      "tags": [
+        "productivity",
+        "collaboration",
+        "visualization",
+        "design",
+        "architecture",
+        "ai",
+        "workspace"
+      ]
     },
     {
-      "name": "asdd",
-      "source": "./claude-plugins/asdd",
-      "description": "The ASDD framework: 13 agents, pipeline hooks (agent chaining and pipeline status), discovery skills and quality-gate rules."
+      "name": "asdd-panel",
+      "description": "Side panel with the ASDD pipeline status: phases, filters by estado and nivel, gates per spec, progress per wave and running agents. Read-only.",
+      "source": "./claude-plugins/asdd-panel",
+      "category": "productivity",
+      "version": "0.1.0",
+      "license": "MIT",
+      "keywords": ["ASDD", "panel", "pipeline", "estado"]
     }
   ]
 }
