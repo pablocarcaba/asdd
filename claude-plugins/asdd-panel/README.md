@@ -52,4 +52,5 @@ claude plugin test claude-plugins/asdd-panel
 
 ## Credits
 
-The idea of showing the progress and status of each ASDD module comes from Alfonso Martinez Moreno ([@sitomarmohotmail](https://github.com/sitomarmohotmail)), in [sitomarmohotmail/d11_asdd](https://github.com/sitomarmohotmail/d11_asdd). This panel is built on that idea.
+- **Idea:** Alfonso Martinez Moreno ([@sitomarmohotmail](https://github.com/sitomarmohotmail)). Showing the progress and status of each ASDD module comes from [sitomarmohotmail/d11_asdd](https://github.com/sitomarmohotmail/d11_asdd).
+- **Contributor:** Pablo ([@pablocarcaba](https://github.com/pablocarcaba)), who built this panel on that idea.
