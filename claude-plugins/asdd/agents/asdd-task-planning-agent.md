@@ -134,9 +134,11 @@ Last updated: [ISO date]
 
 ### Pipeline Status Header
 
-`tasks.md` MUST start with the YAML header defined in `.claude/rules/estado-pipeline.md` (template above), listing **every** `TASK-NNN` of the body, in the same order, with its wave in `ola`.
+`tasks.md` MUST start with the YAML header defined in `.claude/rules/estado-pipeline.md` (template above). Choose the mode by the number of tasks (limit: `maxTareasCabecera` in `.claude/asdd.config.json`, default 50):
 
-- If the Task Planning Readiness Gate passes (confidence ≥ 0.85), every task starts as `estado: validada`; otherwise `estado: borrador`.
+- **Up to the limit — header mode:** list **every** `TASK-NNN` of the body under `tareas`, in the same order, with its wave in `ola`. If the Task Planning Readiness Gate passes (confidence ≥ 0.85), every task starts as `estado: validada`; otherwise `estado: borrador`. Keep the body checkboxes consistent with the list.
+- **Above the limit — body mode:** write `tareas: cuerpo` instead of the list, and write every task line as `- [ ] TASK-NNN · Title` followed by a sub-bullet with `**Oleada:**` and `**Tamaño:**` (S/M/L). Do not duplicate the tasks in the header.
+- When a plan grows past the limit, switch it to body mode in the same rewrite.
 - When resuming, keep the `estado` of tasks that are already `en_curso` or `implementada`.
 - Never write `aprobada`.
 

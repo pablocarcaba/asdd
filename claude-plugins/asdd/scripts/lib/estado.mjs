@@ -17,7 +17,10 @@ export const PUERTAS = ['validacion', 'qa', 'seguridad', 'accesibilidad']
 export const FICHERO_SPEC = 'requirements.md'
 export const FICHERO_TAREAS = 'tasks.md'
 
-const MAX_FICHERO = 1024 * 1024
+// La cabecera se lee del principio del fichero: una spec puede pesar varios MiB.
+const MAX_CABECERA = 256 * 1024
+// tasks.md se lee entero en modo "cuerpo"; un plan de miles de tareas cabe de sobra.
+const MAX_TAREAS = 64 * 1024 * 1024
 
 /** "En curso" → "en_curso"; devuelve null si no es un estado válido. */
 export function normalizarEstado(valor) {
@@ -80,11 +83,34 @@ function normalizarNombrePuerta(p) {
   return /^[a-z][a-z0-9_]{0,40}$/.test(n) ? n : null
 }
 
-function leerMarkdown(fichero) {
+function leerMarkdown(fichero, max = MAX_TAREAS) {
   const st = fs.statSync(fichero, { throwIfNoEntry: false })
   if (!st || !st.isFile()) return null
-  if (st.size > MAX_FICHERO) throw new Error('el fichero supera 1 MiB')
+  if (st.size > max) throw new Error(`el fichero supera ${Math.round(max / 1024 / 1024)} MiB`)
   return fs.readFileSync(fichero, 'utf8')
+}
+
+/** Lee solo el principio del fichero y devuelve su cabecera (o null). */
+function leerCabeceraDeFichero(fichero) {
+  const st = fs.statSync(fichero, { throwIfNoEntry: false })
+  if (!st || !st.isFile()) return undefined
+  const fd = fs.openSync(fichero, 'r')
+  let principio
+  try {
+    const buf = Buffer.alloc(Math.min(st.size, MAX_CABECERA))
+    const leidos = fs.readSync(fd, buf, 0, buf.length, 0)
+    principio = buf.subarray(0, leidos).toString('utf8')
+  } finally {
+    fs.closeSync(fd)
+  }
+  try {
+    return leerCabecera(principio)
+  } catch (e) {
+    if (st.size > MAX_CABECERA && /no se cierra/.test(e.message)) {
+      throw new Error(`la cabecera YAML no se cierra en los primeros ${MAX_CABECERA / 1024} KiB`)
+    }
+    throw e
+  }
 }
 
 function leerSpec(rutas, carpeta, avisos) {
@@ -104,25 +130,39 @@ function leerSpec(rutas, carpeta, avisos) {
     nivel: null,
     version: null,
     puertas: Object.fromEntries(PUERTAS.map(p => [p, 'pendiente'])),
-    tareas: { total: 0, porEstado: Object.fromEntries(ESTADOS.map(e => [e, 0])), lista: [] },
+    tareas: {
+      origen: null,
+      total: 0,
+      porEstado: Object.fromEntries(ESTADOS.map(e => [e, 0])),
+      pendientes: 0,
+      fallidas: 0,
+      porOla: [],
+      lista: [],
+    },
     errores,
   }
 
+  // Las tareas se leen aunque la cabecera de la spec falte o esté mal.
+  leerCabeceraSpec(ficheroSpec, spec, avisar)
+  leerTareas(rutas, carpeta, spec, avisos)
+  return spec
+}
+
+function leerCabeceraSpec(ficheroSpec, spec, avisar) {
   let cab
   try {
-    const contenido = leerMarkdown(ficheroSpec)
-    if (contenido === null) {
-      avisar(`falta ${FICHERO_SPEC}`)
-      return spec
-    }
-    cab = leerCabecera(contenido)
+    cab = leerCabeceraDeFichero(ficheroSpec)
   } catch (e) {
     avisar(`cabecera no válida: ${e.message}`)
-    return spec
+    return
+  }
+  if (cab === undefined) {
+    avisar(`falta ${FICHERO_SPEC}`)
+    return
   }
   if (!cab) {
     avisar('sin cabecera YAML de estado')
-    return spec
+    return
   }
   const d = cab.datos
   for (const obligatoria of ['id', 'titulo', 'estado', 'nivel', 'version']) {
@@ -136,9 +176,76 @@ function leerSpec(rutas, carpeta, avisos) {
   if (d.nivel != null && !spec.nivel) avisar(`nivel no válido: ${d.nivel} (usa S, M o L)`)
   spec.version = d.version == null ? null : texto(d.version, 30)
   spec.puertas = leerPuertas(d.puertas, avisar)
+}
 
-  leerTareas(rutas, carpeta, spec, avisos)
-  return spec
+// Tareas en el cuerpo de tasks.md (modo "cuerpo", para planes grandes):
+//   - [x] TASK-001 · Título            [x] implementada · [!] fallida · [ ] pendiente
+//     - **Oleada:** O39 · **Tamaño:** M
+// La oleada también se toma del último título "Wave N" / "Oleada ON".
+const RE_LINEA_TAREA = /^\s*[-*] \[([ xX!])\] (TASK-[A-Za-z0-9_.-]+)\b\s*(?:[·:—–-]\s*)?(.*)$/
+const RE_OLA_CAMPO = /\*\*(?:Oleada|Ola|Wave):\*\*\s*([A-Za-z]?\d+[A-Za-z0-9.-]*)/i
+const RE_TAMANO_CAMPO = /\*\*(?:Tamaño|Nivel|Size):\*\*\s*([SML])\b/i
+const RE_OLA_TITULO = /^#{1,6}\s.*?\b(?:Oleada|Ola|Wave)\s+([A-Za-z]?\d+[A-Za-z0-9.-]*)/i
+
+export function leerTareasDelCuerpo(lineas) {
+  const tareas = []
+  let ola = null
+  let actual = null
+  let enCodigo = false
+  for (const linea of lineas) {
+    if (/^\s*(```|~~~)/.test(linea)) {
+      enCodigo = !enCodigo
+      continue
+    }
+    if (enCodigo) continue
+    const titulo = linea.match(RE_OLA_TITULO)
+    if (titulo) {
+      ola = titulo[1]
+      actual = null
+      continue
+    }
+    if (/^#{1,6}\s/.test(linea)) {
+      actual = null
+      continue
+    }
+    const m = linea.match(RE_LINEA_TAREA)
+    if (m) {
+      const marca = m[1].toLowerCase()
+      actual = {
+        id: m[2],
+        titulo: m[3].replace(/\*\*\(.*?\)\*\*/g, '').replace(/\*\*/g, '').trim().slice(0, 200) || m[2],
+        estado: marca === 'x' ? 'implementada' : marca === '!' ? 'en_curso' : null,
+        nivel: null,
+        ola,
+        marca: marca === 'x' ? 'hecha' : marca === '!' ? 'fallida' : 'pendiente',
+      }
+      tareas.push(actual)
+      continue
+    }
+    if (actual && /^\s+\S/.test(linea)) {
+      const o = linea.match(RE_OLA_CAMPO)
+      if (o) actual.ola = o[1]
+      const t = linea.match(RE_TAMANO_CAMPO)
+      if (t) actual.nivel = t[1].toUpperCase()
+    } else if (linea.trim() !== '') {
+      actual = null
+    }
+  }
+  return tareas
+}
+
+function anotarTarea(spec, tarea) {
+  const t = spec.tareas
+  t.lista.push(tarea)
+  t.total++
+  if (tarea.estado) t.porEstado[tarea.estado]++
+  if (tarea.marca === 'pendiente' || (!tarea.marca && !tarea.estado)) t.pendientes++
+  if (tarea.marca === 'fallida') t.fallidas++
+  const ola = tarea.ola ?? '—'
+  let grupo = t.porOla.find(g => g.ola === ola)
+  if (!grupo) t.porOla.push((grupo = { ola, total: 0, implementadas: 0 }))
+  grupo.total++
+  if (tarea.estado === 'implementada') grupo.implementadas++
 }
 
 function leerTareas(rutas, carpeta, spec, avisos) {
@@ -148,25 +255,47 @@ function leerTareas(rutas, carpeta, spec, avisos) {
     spec.errores.push(`${FICHERO_TAREAS}: ${mensaje}`)
     avisos.push({ fichero: rel, mensaje })
   }
+  let contenido
   let cab
   try {
-    const contenido = leerMarkdown(fichero)
+    contenido = leerMarkdown(fichero)
     if (contenido === null) return
     cab = leerCabecera(contenido)
   } catch (e) {
     avisar(`cabecera no válida: ${e.message}`)
     return
   }
-  if (!cab) {
-    avisar('sin cabecera YAML de tareas')
+  const lineas = contenido.replace(/^﻿/, '').split(/\r\n|\r|\n/)
+  const cuerpo = leerTareasDelCuerpo(cab ? lineas.slice(cab.lineas) : lineas)
+  const lista = cab?.datos.tareas
+
+  // Modo "cuerpo": sin cabecera, sin lista, o "tareas: cuerpo".
+  if (lista === undefined || lista === null || lista === 'cuerpo') {
+    spec.tareas.origen = 'cuerpo'
+    const vistas = new Set()
+    for (const t of cuerpo) {
+      if (vistas.has(t.id)) {
+        avisar(`tarea repetida en el cuerpo: ${t.id}`)
+        continue
+      }
+      vistas.add(t.id)
+      anotarTarea(spec, t)
+    }
     return
   }
-  const lista = cab.datos.tareas
-  if (lista == null) return
   if (!Array.isArray(lista)) {
-    avisar('"tareas" debe ser una lista')
+    avisar('"tareas" debe ser una lista, o "cuerpo" para leer las casillas del cuerpo')
     return
   }
+
+  // Modo "cabecera": la lista YAML manda; las casillas del cuerpo se contrastan.
+  spec.tareas.origen = 'cabecera'
+  if (lista.length > rutas.maxTareasCabecera) {
+    avisar(
+      `${lista.length} tareas en la cabecera (máximo ${rutas.maxTareasCabecera}): usa "tareas: cuerpo" y las casillas del cuerpo`,
+    )
+  }
+  const casillas = new Map(cuerpo.map(t => [t.id, t]))
   const vistas = new Set()
   for (const [i, t] of lista.entries()) {
     if (!t || typeof t !== 'object' || Array.isArray(t)) {
@@ -181,17 +310,25 @@ function leerTareas(rutas, carpeta, spec, avisos) {
     if (!estado) avisar(`la tarea ${id ?? i + 1} tiene un estado no válido: ${t.estado ?? '(vacío)'}`)
     const nivel = t.nivel == null ? null : NIVELES.includes(String(t.nivel).toUpperCase()) ? String(t.nivel).toUpperCase() : null
     if (t.nivel != null && !nivel) avisar(`la tarea ${id} tiene un nivel no válido: ${t.nivel}`)
+    const casilla = id ? casillas.get(id) : undefined
+    if (casilla && estado) {
+      const hecha = casilla.marca === 'hecha'
+      if (hecha !== (estado === 'implementada')) {
+        avisar(`${id}: la casilla del cuerpo dice ${hecha ? '[x]' : `[${casilla.marca === 'fallida' ? '!' : ' '}]`} y la cabecera dice ${estado}`)
+      }
+    }
     const tarea = {
       id,
-      titulo: texto(t.titulo) ?? id,
+      titulo: texto(t.titulo) ?? casilla?.titulo ?? id,
       estado,
-      nivel,
-      ola: t.ola == null ? null : texto(t.ola, 20),
+      nivel: nivel ?? casilla?.nivel ?? null,
+      ola: t.ola == null ? casilla?.ola ?? null : texto(t.ola, 20),
     }
     if (t.puertas !== undefined) tarea.puertas = leerPuertas(t.puertas, avisar)
-    spec.tareas.lista.push(tarea)
-    spec.tareas.total++
-    if (estado) spec.tareas.porEstado[estado]++
+    anotarTarea(spec, tarea)
+  }
+  for (const id of casillas.keys()) {
+    if (!vistas.has(id)) avisar(`${id} está en el cuerpo pero no en la cabecera`)
   }
 }
 
@@ -210,7 +347,9 @@ export function generarEstado(rutas, { ahora = new Date() } = {}) {
     if (!entrada.isDirectory() || entrada.name.startsWith('.')) continue
     specs.push(leerSpec(rutas, path.join(rutas.specs, entrada.name), avisos))
   }
-  specs.sort((a, b) => (a.id ?? `~${a.carpeta}`).localeCompare(b.id ?? `~${b.carpeta}`, 'es', { numeric: true }))
+  // Por id; las specs sin id, al final y por carpeta.
+  const comparar = (x, y) => x.localeCompare(y, 'es', { numeric: true })
+  specs.sort((a, b) => (a.id && b.id ? comparar(a.id, b.id) : a.id ? -1 : b.id ? 1 : comparar(a.carpeta, b.carpeta)))
 
   const ids = new Map()
   for (const s of specs) {
@@ -222,8 +361,12 @@ export function generarEstado(rutas, { ahora = new Date() } = {}) {
   const fases = ESTADOS.map(estado => ({ estado, specs: specs.filter(s => s.estado === estado).length }))
   const tareasPorEstado = Object.fromEntries(ESTADOS.map(e => [e, 0]))
   let tareasTotal = 0
+  let pendientes = 0
+  let fallidas = 0
   for (const s of specs) {
     tareasTotal += s.tareas.total
+    pendientes += s.tareas.pendientes
+    fallidas += s.tareas.fallidas
     for (const e of ESTADOS) tareasPorEstado[e] += s.tareas.porEstado[e]
   }
 
@@ -235,7 +378,7 @@ export function generarEstado(rutas, { ahora = new Date() } = {}) {
       specs: specs.length,
       sinEstado: specs.filter(s => !s.estado).length,
       porNivel: Object.fromEntries(NIVELES.map(n => [n, specs.filter(s => s.nivel === n).length])),
-      tareas: { total: tareasTotal, porEstado: tareasPorEstado },
+      tareas: { total: tareasTotal, porEstado: tareasPorEstado, pendientes, fallidas },
     },
     specs,
     agentes: listarAgentes(rutas, { ahora }),

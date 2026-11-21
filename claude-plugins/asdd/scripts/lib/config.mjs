@@ -5,7 +5,8 @@
 //     "specs":   ".claude/specs",                  carpetas de spec
 //     "estado":  ".claude/state/estado-asdd.json", JSON que genera el marco
 //     "agentes": ".claude/state/agentes",          un fichero por agente en marcha
-//     "html":    false                              o una ruta: dashboard estático
+//     "html":    false,                             o una ruta: dashboard estático
+//     "maxTareasCabecera": 50                      más tareas → casillas del cuerpo
 //   }
 // Ninguna ruta puede ser absoluta ni salir de la raíz.
 
@@ -20,6 +21,7 @@ export const POR_DEFECTO = Object.freeze({
   estado: '.claude/state/estado-asdd.json',
   agentes: '.claude/state/agentes',
   html: false,
+  maxTareasCabecera: 50,
 })
 
 export class ErrorConfig extends Error {
@@ -72,8 +74,12 @@ export function cargarConfig(raiz) {
     if (!Object.hasOwn(POR_DEFECTO, clave)) throw new ErrorConfig(`clave desconocida en ${FICHERO_CONFIG}: ${clave}`)
   }
   const c = { ...POR_DEFECTO, ...propia }
+  if (!Number.isInteger(c.maxTareasCabecera) || c.maxTareasCabecera < 0) {
+    throw new ErrorConfig('"maxTareasCabecera" debe ser un número entero mayor o igual que 0')
+  }
   const rutas = {
     raiz,
+    maxTareasCabecera: c.maxTareasCabecera,
     specs: rutaDentro(raiz, c.specs, 'specs'),
     estado: rutaDentro(raiz, c.estado, 'estado'),
     agentes: rutaDentro(raiz, c.agentes, 'agentes'),

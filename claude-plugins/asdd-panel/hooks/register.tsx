@@ -71,7 +71,8 @@ export function aVista(datos: unknown): Vista {
   })
   const specs: SpecPanel[] = lista(d.specs).map(x => {
     const s = objeto(x)
-    const t = objeto(objeto(s.tareas).porEstado)
+    const tareas = objeto(s.tareas)
+    const t = objeto(tareas.porEstado)
     const puertas: Record<string, Resultado> = {}
     for (const [k, r] of Object.entries(objeto(s.puertas))) {
       if (typeof r === 'string' && r in SIMBOLO) puertas[k.slice(0, 40)] = r as Resultado
@@ -87,9 +88,16 @@ export function aVista(datos: unknown): Vista {
       version: typeof s.version === 'number' ? s.version : texto(s.version, 30),
       puertas,
       tareas: {
-        total: numero(objeto(s.tareas).total),
+        origen: tareas.origen === 'cabecera' || tareas.origen === 'cuerpo' ? tareas.origen : null,
+        total: numero(tareas.total),
         implementadas: numero(t.implementada),
         enCurso: numero(t.en_curso),
+        pendientes: numero(tareas.pendientes),
+        fallidas: numero(tareas.fallidas),
+        olas: lista(tareas.porOla).slice(0, 500).map(x => {
+          const o = objeto(x)
+          return { ola: texto(o.ola, 20) ?? '—', total: numero(o.total), implementadas: numero(o.implementadas) }
+        }),
       },
       errores: lista(s.errores).length,
     }
@@ -107,6 +115,8 @@ export function aVista(datos: unknown): Vista {
     generado: texto(d.generado, 40) ?? '',
     fases,
     sinEstado: numero(objeto(d.resumen).sinEstado),
+    tareasPendientes: numero(objeto(objeto(d.resumen).tareas).pendientes),
+    tareasFallidas: numero(objeto(objeto(d.resumen).tareas).fallidas),
     specs,
     agentes,
     avisos: lista(d.avisos).length,
@@ -119,6 +129,12 @@ export function filtrar(specs: SpecPanel[], f: Filtro): SpecPanel[] {
       (f.estado === '' || (f.estado === 'sin_estado' ? s.estado === null : s.estado === f.estado)) &&
       (f.nivel === '' || s.nivel === f.nivel),
   )
+}
+
+/** Oleadas sin terminar y cuántas están completas. */
+export function resumenOlas(olas: SpecPanel['tareas']['olas']): { abiertas: string[]; completas: number } {
+  const abiertas = olas.filter(o => o.implementadas < o.total).map(o => `${o.ola} ${o.implementadas}/${o.total}`)
+  return { abiertas, completas: olas.length - abiertas.length }
 }
 
 function hora(iso: string): string {
@@ -240,6 +256,12 @@ export const register: Register = on => {
               </Text>
             </Box>
           ))}
+          {(v.tareasPendientes > 0 || v.tareasFallidas > 0) && (
+            <Text dimColor>
+              {'  '}Tareas sin estado: {v.tareasPendientes} pendiente{v.tareasPendientes === 1 ? '' : 's'}
+              {v.tareasFallidas > 0 ? ` · ${v.tareasFallidas} fallida${v.tareasFallidas === 1 ? '' : 's'}` : ''}
+            </Text>
+          )}
           {v.sinEstado > 0 && (
             <Text color="error">
               {'  '}Sin estado{'     '}
@@ -295,6 +317,22 @@ export const register: Register = on => {
                   </Text>
                 ))}
               </Box>
+              {s.tareas.olas.length > 1 &&
+                (() => {
+                  const { abiertas, completas } = resumenOlas(s.tareas.olas)
+                  return (
+                    <Text dimColor>
+                      Oleadas: {abiertas.length > 0 ? abiertas.slice(0, 6).join(' · ') : 'todas completas'}
+                      {abiertas.length > 6 ? ` · +${abiertas.length - 6}` : ''}
+                      {abiertas.length > 0 && completas > 0 ? ` · ${completas} completa${completas === 1 ? '' : 's'}` : ''}
+                    </Text>
+                  )
+                })()}
+              {s.tareas.fallidas > 0 && (
+                <Text color="error">
+                  {s.tareas.fallidas} tarea{s.tareas.fallidas === 1 ? '' : 's'} fallida{s.tareas.fallidas === 1 ? '' : 's'} [!]
+                </Text>
+              )}
               {s.errores > 0 && (
                 <Text color="warning">
                   {s.errores} aviso{s.errores === 1 ? '' : 's'} en la cabecera

@@ -94,6 +94,7 @@ For each task in the current wave, spawn a **Sub-Agent** with this isolated cont
 
 You MAY edit the YAML status headers of `tasks.md` and `requirements.md` (and nothing else in those files), following `.claude/rules/estado-pipeline.md`:
 
+- **Body mode** (`tareas: cuerpo` or no `tareas` list): the checkbox is the task status (`[x]` done, `[!]` failed); do not add a task list to the header. The spec transitions below still apply.
 - **Task starts:** its entry in `tareas` → `estado: en_curso`. The first task that starts also moves the spec (`requirements.md`) to `estado: en_curso`.
 - **Task done (`[x]`):** `estado: implementada`. A failed task (`[!]`) stays `en_curso`.
 - **All tasks `implementada`:** the spec → `estado: implementada`.

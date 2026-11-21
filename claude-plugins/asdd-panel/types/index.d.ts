@@ -11,7 +11,16 @@ export type SpecPanel = {
   nivel: 'S' | 'M' | 'L' | null
   version: string | number | null
   puertas: Record<string, Resultado>
-  tareas: { total: number; implementadas: number; enCurso: number }
+  tareas: {
+    origen: 'cabecera' | 'cuerpo' | null
+    total: number
+    implementadas: number
+    enCurso: number
+    pendientes: number
+    fallidas: number
+    /** Avance por oleada, en el orden del plan. */
+    olas: { ola: string; total: number; implementadas: number }[]
+  }
   errores: number
 }
 
@@ -22,6 +31,8 @@ export type Vista = {
   generado: string
   fases: { estado: Estado; specs: number; tareas: number }[]
   sinEstado: number
+  tareasPendientes: number
+  tareasFallidas: number
   specs: SpecPanel[]
   agentes: AgentePanel[]
   avisos: number

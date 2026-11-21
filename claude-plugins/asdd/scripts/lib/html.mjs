@@ -56,6 +56,9 @@ var te=el('td');te.appendChild(s.estado?chip(NOMBRE[s.estado],s.estado):chip('si
 tr.appendChild(el('td',s.nivel||'—'));
 var tp=el('td');var pu=el('div',null,'puertas');Object.keys(s.puertas).forEach(function(k){pu.appendChild(chip((PUERTA[k]||k)+': '+s.puertas[k].replace('_',' '),s.puertas[k]))});tp.appendChild(pu);tr.appendChild(tp);
 var ta=el('td');var hechas=s.tareas.porEstado.implementada;ta.appendChild(el('div',s.tareas.total?hechas+' / '+s.tareas.total+' implementadas':'—'));
+if(s.tareas.fallidas)ta.appendChild(chip(s.tareas.fallidas+' fallida'+(s.tareas.fallidas===1?'':'s'),'bloqueada'));
+var ab=(s.tareas.porOla||[]).filter(function(o){return o.implementadas<o.total});
+if((s.tareas.porOla||[]).length>1)ta.appendChild(el('div',ab.length?'Oleadas abiertas: '+ab.map(function(o){return o.ola+' '+o.implementadas+'/'+o.total}).join(' · '):'Todas las oleadas completas','suave'));
 if(s.errores.length)ta.appendChild(el('div',s.errores.length+' aviso'+(s.errores.length===1?'':'s'),'suave'));tr.appendChild(ta);
 tb.appendChild(tr)})}
 fe.addEventListener('change',pinta);fn.addEventListener('change',pinta);pinta();

@@ -1,3 +1,4 @@
+import type { On } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
 const PANEL = {
@@ -30,7 +31,7 @@ const ESTADO = {
   resumen: {
     specs: 4,
     sinEstado: 1,
-    tareas: { total: 4, porEstado: { borrador: 0, validada: 1, aprobada: 0, en_curso: 1, implementada: 2 } },
+    tareas: { total: 4, porEstado: { borrador: 0, validada: 1, aprobada: 0, en_curso: 1, implementada: 2 }, pendientes: 2, fallidas: 1 },
   },
   specs: [
     {
@@ -41,7 +42,18 @@ const ESTADO = {
       nivel: 'M',
       version: 3,
       puertas: { validacion: 'pasada', qa: 'pendiente', seguridad: 'bloqueada', accesibilidad: 'no_aplica' },
-      tareas: { total: 4, porEstado: { implementada: 2, en_curso: 1, validada: 1 } },
+      tareas: {
+        origen: 'cuerpo',
+        total: 4,
+        porEstado: { implementada: 2, en_curso: 1, validada: 1 },
+        pendientes: 1,
+        fallidas: 1,
+        porOla: [
+          { ola: 'O01', total: 1, implementadas: 1 },
+          { ola: 'O02', total: 1, implementadas: 1 },
+          { ola: 'O03', total: 2, implementadas: 0 },
+        ],
+      },
       errores: [],
     },
     {
@@ -84,22 +96,29 @@ const ESTADO = {
 
 type Ficheros = Record<string, string>
 
+const ABRIR = {
+  command: 'asdd-panel',
+  args: '',
+  origin: { kind: 'composer' },
+  presentation: { isFullscreen: false, columns: 120, command: 'asdd-panel' },
+} as const
+
 /**
  * Un proyecto simulado: el panel solo ve estos ficheros. El motor entrega las
  * rutas ya resueltas (absolutas), así que se buscan por el final de la ruta.
  */
-function proyecto(on: Parameters<Parameters<typeof test>[1]>[1], inicial: Ficheros) {
+function proyecto(on: On, inicial: Ficheros) {
   const p = { ficheros: inicial, abiertos: [] as string[] }
   const buscar = (ruta: string) => Object.keys(p.ficheros).find(k => ruta === k || ruta.endsWith(`/${k}`))
   on('fs.exists', (_, e) => ({ value: buscar(e.path) !== undefined }))
   on('fs.read', (_, e) => {
     const k = buscar(e.path)
     if (k === undefined) throw new Error(`ENOENT ${e.path}`)
-    return { value: p.ficheros[k] }
+    return { value: p.ficheros[k] ?? '' }
   })
   on('fs.stat', (_, e) => {
     const k = buscar(e.path)
-    return { value: { kind: 'file', size: k ? p.ficheros[k].length : 0, mtimeMs: 1, isLink: false } }
+    return { value: { kind: 'file', size: k ? (p.ficheros[k] ?? '').length : 0, mtimeMs: 1, isLink: false } }
   })
   on('command.register', () => ({ value: { command: 'asdd-panel' } }))
   on('ui.open', (_, e) => {
@@ -130,6 +149,9 @@ test('en un proyecto ASDD se abre el panel con el pipeline, las puertas y los ag
     expect(await ui.find({ type: 'Text', text: 'asdd-qa-agent' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /1 aviso en las cabeceras/ })).toBeDefined()
     expect((await ui.find({ type: 'Text', text: /^Specs/ }))?.text).toBe('Specs (4)')
+    expect((await ui.find({ type: 'Text', text: /^Oleadas/ }))?.text).toBe('Oleadas: O03 0/2 · 2 completas')
+    expect((await ui.find({ type: 'Text', text: /fallida \[!\]/ }))?.text).toBe('1 tarea fallida [!]')
+    expect((await ui.find({ type: 'Text', text: /Tareas sin estado/ }))?.text).toContain('2 pendientes · 1 fallida')
     await ui.unmount()
   }
 })
@@ -171,7 +193,7 @@ test('rechaza una ruta de estado absoluta o con .. en la configuración', async 
   const p = proyecto(on, {})
   for (const estado of ['/var/www/estado.json', '../fuera.json', '~/estado.json']) {
     p.ficheros = { '.claude/asdd.config.json': JSON.stringify({ estado }) }
-    await $.command.run({ command: 'asdd-panel', args: '' })
+    await $.command.run(ABRIR)
     const ui = await $.ui.mount({ ...PANEL, surface: 'desktop' })
     expect((await ui.find({ type: 'Text', text: /ruta relativa/ }))?.text).toContain('"estado"')
     await ui.unmount()
@@ -186,7 +208,7 @@ test('sin JSON todavía, o con un JSON roto, explica qué pasa en vez de rompers
   await ui.unmount()
 
   p.ficheros = { '.claude/specs': '', '.claude/state/estado-asdd.json': '{"formato": 99}' }
-  await $.command.run({ command: 'asdd-panel', args: '' })
+  await $.command.run(ABRIR)
   ui = await $.ui.mount({ ...PANEL, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /formato de estado desconocido/ })).toBeDefined()
   await ui.unmount()

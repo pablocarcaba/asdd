@@ -70,9 +70,12 @@ Optional `.claude/asdd.config.json` (all paths relative to the project root; abs
   "specs": ".claude/specs",
   "estado": ".claude/state/estado-asdd.json",
   "agentes": ".claude/state/agentes",
-  "html": false
+  "html": false,
+  "maxTareasCabecera": 50
 }
 ```
+
+Plans up to `maxTareasCabecera` tasks list them in the `tasks.md` header; larger plans write `tareas: cuerpo` and the status comes from the body checkboxes (`- [x] TASK-NNN · Title`, with `**Oleada:**` and `**Tamaño:**`), with progress per wave. See the rule for details.
 
 Set `"html"` to a path (or `true`) to rewrite the dashboard on every update. The dashboard is a single static file with the status embedded: no server, no network requests (`Content-Security-Policy: default-src 'none'`) and no editing. Specs only change in git.
 

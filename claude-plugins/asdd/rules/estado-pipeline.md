@@ -25,9 +25,13 @@ puertas:                     # gate results
 ---
 ```
 
-## Task header — `.claude/specs/[spec-name]/tasks.md`
+## Task status — `.claude/specs/[spec-name]/tasks.md`
 
-Tasks stay as Execution Waves in the body of `tasks.md`. The header lists every task with the same status vocabulary:
+Tasks stay as Execution Waves in the body of `tasks.md`. Their status is read in one of two modes, chosen by the size of the plan. The limit is `maxTareasCabecera` in `.claude/asdd.config.json` (default **50** tasks).
+
+### Header mode (`tareas:` list) — plans up to `maxTareasCabecera` tasks
+
+The header lists every task with the same status vocabulary:
 
 ```yaml
 ---
@@ -47,6 +51,26 @@ tareas:
 ---
 ```
 
+The checkboxes of the body (`[x]`, `[ ]`, `[!]`) are still kept. When both exist, the generator compares them and reports every task whose checkbox and header disagree, and every body task missing from the header.
+
+### Body mode (`tareas: cuerpo`) — larger plans
+
+The header says `tareas: cuerpo` (or `tasks.md` has no header) and the status comes from the body. Each task line MUST follow this form:
+
+```markdown
+#### Oleada O40                       # or "### Wave 3: …": sets the wave of the tasks below
+- [x] TASK-001 · Crear entidad Cliente
+  - **Oleada:** O40 · **Tamaño:** M · **Type:** model
+```
+
+| Checkbox | Status |
+|---|---|
+| `[x]` | `implementada` |
+| `[!]` | `en_curso`, counted as failed |
+| `[ ]` | pending (no status) |
+
+`**Oleada:**` (or `**Wave:**`) overrides the heading's wave, and `**Tamaño:**` (or `**Size:**`) gives the task `nivel` (S/M/L). Only `TASK-NNN` lines count; lines inside code blocks are ignored. The panel shows progress per wave. Body mode cannot tell `borrador`, `validada` or `aprobada` apart for pending tasks, and has no gates per task.
+
 ## Who may write what
 
 | Transition | Who | When |
@@ -56,9 +80,9 @@ tareas:
 | `borrador` → `validada` | Validation Agent | Report PASSED or PASSED_WITH_WARNINGS: `puertas.validacion` = `pasada` or `avisos` |
 | stays `borrador` | Validation Agent | Report BLOCKED or PARTIAL: `puertas.validacion` = `bloqueada` |
 | `validada` → `aprobada` | **The person only** | Human approval, committed in git. **No agent may ever write `aprobada`** |
-| task `borrador`/`validada` | Task Planning Agent | Writes the `tareas` list: `validada` if the Task Planning gate passes, otherwise `borrador` |
+| task `borrador`/`validada` | Task Planning Agent | Header mode: writes the `tareas` list, `validada` if the Task Planning gate passes, otherwise `borrador`. Body mode: writes `tareas: cuerpo` and the task lines |
 | `aprobada` → `en_curso` | Implementation Agent | First task starts (task and spec) |
-| `en_curso` → `implementada` | Implementation Agent | Task done; the spec when every task is `implementada` |
+| `en_curso` → `implementada` | Implementation Agent | Task done; the spec when every task is `implementada`. In body mode the checkbox is the task status |
 | `puertas.qa` | QA Agent | `pasada`, `avisos` (only WARN items) or `bloqueada` (any BLOCK item) |
 | `puertas.seguridad` | Security Agent | `pasada` (PASSED), `avisos` (PASSED_WITH_WARNINGS) or `bloqueada` (BLOCKED) |
 | `puertas.accesibilidad` | The person, or QA when the spec has UI criteria | `no_aplica` when the spec has no user interface |
@@ -81,4 +105,4 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/asdd-estado.mjs" --html      # also the read
 node "${CLAUDE_PLUGIN_ROOT}/scripts/asdd-estado.mjs" --comprobar # CI: exit 1 if any header is invalid
 ```
 
-Paths are configurable in `.claude/asdd.config.json` (`specs`, `estado`, `agentes`, `html`) and are always relative to the project root.
+Paths are configurable in `.claude/asdd.config.json` (`specs`, `estado`, `agentes`, `html`) and are always relative to the project root; `maxTareasCabecera` sets the header-mode limit.
