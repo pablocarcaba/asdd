@@ -1,5 +1,7 @@
-import type { On } from 'claude-code'
+import type { On, SessionInfo } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
+
+import { comandoParaAbrir, rutaDelHtml } from '../hooks/register'
 
 const PANEL = {
   plugin: 'asdd-panel',
@@ -238,4 +240,43 @@ test('si el panel se coloca, no avisa', async ($, on) => {
   })
   await $.session.start({ cwd: '/proyecto', surface: 'terminal', isInteractive: true })
   expect(avisos).toEqual([])
+})
+
+test('con el dashboard HTML generado, el botón lo abre con el navegador del sistema; sin él, no hay botón', async ($, on) => {
+  const p = proyecto(on, {
+    '.claude/specs': '',
+    '.claude/state/estado-asdd.json': JSON.stringify(ESTADO),
+    '.claude/state/estado-asdd.html': '<!doctype html>',
+  })
+  const lanzados: string[][] = []
+  on('session.root', () => ({ value: '/proyecto' }))
+  on('session.info', () => ({ value: { platform: 'macos' } as SessionInfo }))
+  on('process.run', (_, e) => {
+    lanzados.push([...e.argv])
+    return { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  await $.session.start({ cwd: '/proyecto', surface: 'desktop', isInteractive: true })
+  for (const surface of SUPERFICIES) {
+    const ui = await $.ui.mount({ ...PANEL, surface })
+    const boton = await ui.find({ type: 'Button', key: 'abrir-html' })
+    expect(boton).toBeDefined()
+    await ui.press({ key: 'abrir-html' })
+    await ui.unmount()
+  }
+  expect(lanzados[0]).toEqual(['open', '/proyecto/.claude/state/estado-asdd.html'])
+
+  delete p.ficheros['.claude/state/estado-asdd.html']
+  p.ficheros['.claude/state/estado-asdd.json'] = JSON.stringify({ ...ESTADO, generado: '2026-11-21T11:00:00.000Z' })
+  await $.command.run(ABRIR)
+  const ui = await $.ui.mount({ ...PANEL, surface: 'terminal' })
+  expect(await ui.find({ type: 'Button', key: 'abrir-html' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('la ruta del HTML no duplica la barra y el comando depende del sistema', () => {
+  expect(rutaDelHtml('/Users/ana/mi proyecto/', '.claude/state/estado-asdd.html')).toBe('/Users/ana/mi proyecto/.claude/state/estado-asdd.html')
+  expect(comandoParaAbrir('macos', '/a.html')).toEqual(['open', '/a.html'])
+  expect(comandoParaAbrir('linux', '/a.html')).toEqual(['xdg-open', '/a.html'])
+  expect(comandoParaAbrir('windows', 'C:/a.html')).toEqual(['cmd', '/c', 'start', '', 'C:/a.html'])
+  expect(comandoParaAbrir('unknown', '/a.html')).toBeNull()
 })

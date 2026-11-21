@@ -34,10 +34,10 @@
     },
     {
       "name": "asdd-panel",
-      "description": "Side panel with the ASDD pipeline status: phases, filters by estado and nivel, gates per spec, progress per wave and running agents. Read-only.",
+      "description": "Side panel with the ASDD pipeline status: phases, filters by estado and nivel, gates per spec, progress per wave, running agents and a button that opens the HTML dashboard. Read-only.",
       "source": "./claude-plugins/asdd-panel",
       "category": "productivity",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "license": "MIT",
       "keywords": ["ASDD", "panel", "pipeline", "estado"]
     }

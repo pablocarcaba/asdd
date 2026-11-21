@@ -14,6 +14,7 @@ const TITULO = 'Pipeline ASDD'
 const CONFIG = '.claude/asdd.config.json'
 const ESTADO_POR_DEFECTO = '.claude/state/estado-asdd.json'
 const SPECS_POR_DEFECTO = '.claude/specs'
+const HTML_POR_DEFECTO = '.claude/state/estado-asdd.html'
 const CADA_MS = 3000
 export const AVISO_ESTRECHO =
   'Panel del pipeline ASDD listo: escribe /asdd-panel para verlo (abierto solo necesita 144 columnas)'
@@ -43,7 +44,7 @@ const SIMBOLO: Record<Resultado, [string, string | undefined]> = {
 }
 
 // Cambia la etiqueta si cambia la forma: descarta lo que guardó una versión anterior.
-const carga = atom({ plugin: 'asdd-panel', key: 'carga' } as const, { tipo: 'vacio' } as Carga, { shape: 'carga-1' })
+const carga = atom({ plugin: 'asdd-panel', key: 'carga' } as const, { tipo: 'vacio' } as Carga, { shape: 'carga-2' })
 const filtro = atom({ plugin: 'asdd-panel', key: 'filtro' } as const, { estado: '', nivel: '' } as Filtro, {
   shape: 'filtro-1',
 })
@@ -61,6 +62,41 @@ const numero = (v: unknown): number => (typeof v === 'number' && Number.isFinite
 const lista = (v: unknown): unknown[] => (Array.isArray(v) ? v : [])
 const objeto = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+
+/** La ruta absoluta del dashboard HTML: la raíz del proyecto y la ruta relativa, sin barras dobles. */
+export function rutaDelHtml(raiz: string, relativa: string): string {
+  return `${raiz.replace(/[/\\]+$/, '')}/${relativa}`
+}
+
+/** El comando que abre un fichero con la aplicación por defecto del sistema (el navegador, para un .html). */
+export function comandoParaAbrir(plataforma: string | undefined, ruta: string): string[] | null {
+  switch (plataforma) {
+    case 'macos':
+      return ['open', ruta]
+    case 'linux':
+      return ['xdg-open', ruta]
+    case 'wsl':
+      return ['wslview', ruta]
+    case 'windows':
+      return ['cmd', '/c', 'start', '', ruta]
+    default:
+      return null
+  }
+}
+
+async function abrirHtml($: EngineInterface, ruta: string): Promise<void> {
+  try {
+    const argv = comandoParaAbrir((await $.session.info()).platform, ruta)
+    if (argv === null) {
+      $.ui.toast(`No sé abrir ficheros en este sistema: ${ruta}`)
+      return
+    }
+    const r = await $.process.run(argv, { timeoutMs: 10000 })
+    if (r.exitCode !== 0) $.ui.toast(`No se pudo abrir el dashboard (${argv[0]} terminó con ${r.exitCode})`)
+  } catch (err) {
+    $.ui.toast(`No se pudo abrir el dashboard: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
 
 /** Convierte el JSON del generador en lo que dibuja el panel, sin fiarse de su forma. */
 export function aVista(datos: unknown): Vista {
@@ -157,6 +193,7 @@ function hora(iso: string): string {
   async function cargar($: EngineInterface, { forzar = false } = {}): Promise<void> {
     try {
       ficheroEstado = ESTADO_POR_DEFECTO
+      let ficheroHtml = HTML_POR_DEFECTO
       if (await $.fs.exists(CONFIG)) {
         const config = objeto(JSON.parse(await $.fs.read(CONFIG)))
         if (config.estado !== undefined) {
@@ -164,6 +201,8 @@ function hora(iso: string): string {
           if (!ruta) throw new Error(`"estado" en ${CONFIG} debe ser una ruta relativa dentro del proyecto`)
           ficheroEstado = ruta
         }
+        // Una ruta "html" no válida solo quita el enlace: el panel sigue.
+        if (config.html !== undefined) ficheroHtml = rutaRelativaSegura(config.html) ?? ''
       }
       if (!(await $.fs.exists(ficheroEstado))) {
         marca = ''
@@ -179,7 +218,8 @@ function hora(iso: string): string {
       if (!forzar && nueva === marca) return
       marca = nueva
       const vista = aVista(JSON.parse(await $.fs.read(ficheroEstado)))
-      await update($, carga, (): Carga => ({ tipo: 'ok', vista, fichero: ficheroEstado }))
+      const html = ficheroHtml !== '' && (await $.fs.exists(ficheroHtml)) ? rutaDelHtml(await $.session.root(), ficheroHtml) : null
+      await update($, carga, (): Carga => ({ tipo: 'ok', vista, fichero: ficheroEstado, html }))
     } catch (err) {
       marca = ''
       const mensaje = err instanceof Error ? err.message : String(err)
@@ -211,7 +251,7 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANEL }, async ($, e) => {
-    const { Box, Text, Select } = $.ui.resolve(e)
+    const { Box, Text, Select, Button } = $.ui.resolve(e)
     const c = await read($, carga)
     const f = await read($, filtro)
 
@@ -367,6 +407,11 @@ export const register: Register = on => {
               {v.avisos} aviso{v.avisos === 1 ? '' : 's'} en las cabeceras: asdd-estado.mjs --comprobar
             </Text>
           )}
+          {c.html !== null &&
+            (() => {
+              const ruta = c.html
+              return <Button key="abrir-html" label="Abrir el dashboard en el navegador" onPress={() => void abrirHtml($, ruta)} />
+            })()}
           <Text dimColor>
             Actualizado {hora(v.generado)} · {c.fichero} · solo lectura
           </Text>

@@ -1,6 +1,6 @@
 {
   "name": "asdd-panel",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Panel lateral con el estado del pipeline ASDD: fases, filtros por estado y nivel, puertas por spec y agentes en marcha. Lee .claude/state/estado-asdd.json (solo lectura).",
   "author": { "name": "FFactory Team" },
   "license": "MIT",

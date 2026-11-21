@@ -7,6 +7,7 @@ Claude Code side panel showing the ASDD pipeline status of the current project:
 - the gates of each spec (`val`, `qa`, `seg`, `acc`: ✓ passed, ! warnings, ✗ blocked, · pending, – not applicable) and its task progress;
 - the agents currently running;
 - the number of invalid headers.
+- a button, «Abrir el dashboard en el navegador», that opens the HTML dashboard (`html` in `.claude/asdd.config.json`, by default `.claude/state/estado-asdd.html`) with the system's default app (`open` on macOS, `xdg-open` on Linux, `wslview` on WSL, `start` on Windows). It shows only when that file exists.
 
 It is read-only: it reads `.claude/state/estado-asdd.json` (or the `estado` path in `.claude/asdd.config.json`, which must be relative and stay inside the project) every 3 seconds and never writes a file. The JSON is produced by the hooks and the generator of the [`asdd`](../asdd) plugin; without them the panel explains that there is no status yet.
 

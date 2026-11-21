@@ -41,7 +41,7 @@ export type Vista = {
 /** Qué se ve: el estado, o por qué no hay estado. */
 export type Carga =
   | { tipo: 'vacio' }
-  | { tipo: 'ok'; vista: Vista; fichero: string }
+  | { tipo: 'ok'; vista: Vista; fichero: string; /** Ruta absoluta del dashboard HTML, o `null` si no existe. */ html: string | null }
   | { tipo: 'error'; mensaje: string; fichero: string }
 
 export type Filtro = { estado: string; nivel: string }
