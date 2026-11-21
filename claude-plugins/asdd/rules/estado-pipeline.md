@@ -71,6 +71,17 @@ The header says `tareas: cuerpo` (or `tasks.md` has no header) and the status co
 
 `**Oleada:**` (or `**Wave:**`) overrides the heading's wave, and `**Tamaño:**` (or `**Size:**`) gives the task `nivel` (S/M/L). Only `TASK-NNN` lines count; lines inside code blocks are ignored. The panel shows progress per wave. Body mode cannot tell `borrador`, `validada` or `aprobada` apart for pending tasks, and has no gates per task.
 
+## Documents split into small files
+
+When `requirements.md` or `tasks.md` is not at the root of the spec folder, the generator reads the split version:
+
+- **Spec header:** `requirements/requirements.md` (the index). The YAML header goes at the very top of the index, before the title.
+- **Tasks:** `tasks/tasks.md` (the index). The status header, if any, is the index's. The body is the index plus every `.md` linked from its file table (`| n | [name](file.md) | …`), read in the table order. That order rebuilds the original `tasks.md`, so a wave heading in one file still applies to the tasks of the next one. Links outside the spec folder (also through symbolic links) and links that are not `.md` are ignored; a linked file that does not exist is reported as a warning.
+
+The index body is read once, at its first row, even when the table lists it several times ("parte 1, 2…"); put task lines in the linked files, or give each task its `**Oleada:**`.
+
+Add every new file (a new wave, for example) to the index table; a file missing from the table is not read.
+
 ## Who may write what
 
 | Transition | Who | When |

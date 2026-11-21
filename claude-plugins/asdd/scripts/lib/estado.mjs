@@ -6,7 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { leerCabecera } from './cabecera.mjs'
-import { relativa } from './config.mjs'
+import { dentroDe, relativa } from './config.mjs'
 import { listarAgentes } from './agentes.mjs'
 
 export const FORMATO = 1
@@ -90,6 +90,61 @@ function leerMarkdown(fichero, max = MAX_TAREAS) {
   return fs.readFileSync(fichero, 'utf8')
 }
 
+/**
+ * Busca <carpeta>/<nombre> y, si no está, la versión dividida en ficheros
+ * pequeños: <carpeta>/<nombre sin .md>/<nombre>, que hace de índice.
+ * @returns {{ fichero: string, dividido: boolean } | null}
+ */
+export function localizarFichero(carpeta, nombre) {
+  const plano = path.join(carpeta, nombre)
+  if (fs.statSync(plano, { throwIfNoEntry: false })?.isFile()) return { fichero: plano, dividido: false }
+  const indice = path.join(carpeta, nombre.replace(/\.md$/, ''), nombre)
+  if (fs.statSync(indice, { throwIfNoEntry: false })?.isFile()) return { fichero: indice, dividido: true }
+  return null
+}
+
+// Fila de la tabla de ficheros de un índice dividido: | 3 | [historial.md](historial.md) | …
+const RE_FILA_INDICE = /^\|\s*\d+\s*\|\s*\[[^\]]*\]\(([^)#\s]+)(?:#[^)]*)?\)/
+
+/** ¿`destino` queda dentro de `carpeta`, también tras seguir enlaces simbólicos? */
+function dentroDeVerdad(carpeta, destino) {
+  if (!dentroDe(carpeta, destino)) return false
+  try {
+    return dentroDe(fs.realpathSync(carpeta), fs.realpathSync(destino))
+  } catch {
+    return true // no existe: se avisará al leerlo
+  }
+}
+
+/**
+ * Lista, en el orden de la tabla del índice, los ficheros de un documento
+ * dividido. Concatenarlos en ese orden da el documento original, así que el
+ * título de oleada de un fichero sigue valiendo para las tareas del siguiente.
+ * El índice entra una sola vez, en su primera fila. Solo se admiten .md
+ * dentro de la carpeta de la spec (también tras seguir enlaces simbólicos).
+ */
+export function ficherosDelIndice(indice, contenidoIndice, carpetaSpec) {
+  const dir = path.dirname(indice)
+  const ficheros = []
+  const vistos = new Set()
+  for (const linea of contenidoIndice.split(/\r\n|\r|\n/)) {
+    const m = linea.match(RE_FILA_INDICE)
+    if (!m) continue
+    let enlace
+    try {
+      enlace = decodeURIComponent(m[1])
+    } catch {
+      continue // un % mal escrito no rompe la generación
+    }
+    const destino = path.resolve(dir, enlace)
+    if (!destino.endsWith('.md') || vistos.has(destino) || !dentroDeVerdad(carpetaSpec, destino)) continue
+    vistos.add(destino)
+    ficheros.push(destino)
+  }
+  if (!vistos.has(path.resolve(indice))) ficheros.unshift(path.resolve(indice))
+  return ficheros
+}
+
 /** Lee solo el principio del fichero y devuelve su cabecera (o null). */
 function leerCabeceraDeFichero(fichero) {
   const st = fs.statSync(fichero, { throwIfNoEntry: false })
@@ -115,7 +170,7 @@ function leerCabeceraDeFichero(fichero) {
 
 function leerSpec(rutas, carpeta, avisos) {
   const nombreCarpeta = path.basename(carpeta)
-  const ficheroSpec = path.join(carpeta, FICHERO_SPEC)
+  const ficheroSpec = localizarFichero(carpeta, FICHERO_SPEC)?.fichero ?? path.join(carpeta, FICHERO_SPEC)
   const rel = relativa(rutas.raiz, ficheroSpec)
   const errores = []
   const avisar = mensaje => {
@@ -249,7 +304,8 @@ function anotarTarea(spec, tarea) {
 }
 
 function leerTareas(rutas, carpeta, spec, avisos) {
-  const fichero = path.join(carpeta, FICHERO_TAREAS)
+  const ubicacion = localizarFichero(carpeta, FICHERO_TAREAS)
+  const fichero = ubicacion?.fichero ?? path.join(carpeta, FICHERO_TAREAS)
   const rel = relativa(rutas.raiz, fichero)
   const avisar = mensaje => {
     spec.errores.push(`${FICHERO_TAREAS}: ${mensaje}`)
@@ -266,7 +322,39 @@ function leerTareas(rutas, carpeta, spec, avisos) {
     return
   }
   const lineas = contenido.replace(/^﻿/, '').split(/\r\n|\r|\n/)
-  const cuerpo = leerTareasDelCuerpo(cab ? lineas.slice(cab.lineas) : lineas)
+  let lineasCuerpo = cab ? lineas.slice(cab.lineas) : lineas
+  if (ubicacion?.dividido) {
+    // Plan dividido: el cuerpo es la concatenación de los ficheros del índice.
+    const delIndice = lineasCuerpo
+    lineasCuerpo = []
+    let total = 0
+    for (const parte of ficherosDelIndice(fichero, contenido, carpeta)) {
+      let partes
+      if (parte === path.resolve(fichero)) {
+        partes = delIndice
+      } else {
+        let texto
+        try {
+          texto = leerMarkdown(parte)
+        } catch (e) {
+          avisar(`${relativa(rutas.raiz, parte)}: ${e.message}`)
+          continue
+        }
+        if (texto === null) {
+          avisar(`el índice enlaza ${relativa(rutas.raiz, parte)}, que no existe`)
+          continue
+        }
+        partes = texto.replace(/^\uFEFF/, '').split(/\r\n|\r|\n/)
+      }
+      total += partes.reduce((n, l) => n + l.length + 1, 0)
+      if (total > MAX_TAREAS) {
+        avisar(`el plan dividido supera ${Math.round(MAX_TAREAS / 1024 / 1024)} MiB`)
+        break
+      }
+      for (const l of partes) lineasCuerpo.push(l)
+    }
+  }
+  const cuerpo = leerTareasDelCuerpo(lineasCuerpo)
   const lista = cab?.datos.tareas
 
   // Modo "cuerpo": sin cabecera, sin lista, o "tareas: cuerpo".
