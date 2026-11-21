@@ -43,6 +43,16 @@ docs/
 ├── self-healing-log.md
 └── lessons-learned.md
 ```
+## Install
+
+At the prompt of a Claude Code terminal session:
+
+```
+/plugin install asdd --marketplace pablocarcaba/asdd
+```
+
+or from a shell: `claude plugin install asdd --marketplace pablocarcaba/asdd`. The pipeline status side panel is a separate plugin: `/plugin install asdd-panel --marketplace pablocarcaba/asdd`.
+
 ## Pipeline Status (estado del pipeline)
 
 Every spec (`requirements.md`) and every task (the `tareas` list in `tasks.md`) carries a YAML status header from the first draft: `id`, `titulo`, `estado` (`borrador` · `validada` · `aprobada` · `en_curso` · `implementada`), `nivel` (S/M/L), `puertas` and `version`. The format, and which agent may write each transition, is defined in [`rules/estado-pipeline.md`](rules/estado-pipeline.md). Only the person sets `aprobada`, in git.

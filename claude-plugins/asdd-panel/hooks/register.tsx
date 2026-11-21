@@ -15,6 +15,8 @@ const CONFIG = '.claude/asdd.config.json'
 const ESTADO_POR_DEFECTO = '.claude/state/estado-asdd.json'
 const SPECS_POR_DEFECTO = '.claude/specs'
 const CADA_MS = 3000
+export const AVISO_ESTRECHO =
+  'Panel del pipeline ASDD listo: escribe /asdd-panel para verlo (abierto solo necesita 144 columnas)'
 
 export const ESTADOS: Estado[] = ['borrador', 'validada', 'aprobada', 'en_curso', 'implementada']
 const NOMBRE: Record<Estado, string> = {
@@ -193,7 +195,10 @@ export const register: Register = on => {
       await cargar($, { forzar: true })
       reloj?.cancel()
       reloj = $.clock.every(CADA_MS, () => void cargar($))
-      void $.ui.open({ id: PANEL, title: TITULO })
+      // Abierto sin pedirlo, el panel solo se coloca desde 144 columnas; por debajo
+      // espera sin dibujarse. Se avisa una vez de cómo verlo.
+      const abierto = await $.ui.open({ id: PANEL, title: TITULO })
+      if (!abierto.isPlaced) $.ui.toast(AVISO_ESTRECHO, { timeoutMs: 10000 })
     }
     return respuesta
   })

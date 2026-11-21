@@ -12,6 +12,24 @@ It is read-only: it reads `.claude/state/estado-asdd.json` (or the `estado` path
 
 The panel opens by itself when a session starts in an ASDD project (one with `.claude/asdd.config.json` or `.claude/specs/`). Reopen it with `/asdd-panel`.
 
+## Install
+
+At the prompt of a Claude Code terminal session:
+
+```
+/plugin install asdd-panel --marketplace pablocarcaba/asdd
+```
+
+From a shell (add `--scope project` to record it in the project's `.claude/settings.json`):
+
+```bash
+claude plugin install asdd-panel --marketplace pablocarcaba/asdd
+```
+
+In the desktop app: click + next to the prompt box, then Plugins, Add marketplace with `pablocarcaba/asdd`, then Add plugin.
+
+If the terminal is narrower than 144 columns, the panel waits undrawn and a toast says to type `/asdd-panel`.
+
 ## Try it
 
 From the example project, loading both plugins:

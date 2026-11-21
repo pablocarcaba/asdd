@@ -11,4 +11,6 @@
 - Two task modes: the `tareas` list in the `tasks.md` header for small plans (checked against the body checkboxes), and `tareas: cuerpo` for plans above `maxTareasCabecera` (default 50), read from the `- [x] TASK-NNN` lines with their wave and size. The panel and the dashboard show progress per wave.
 - Large specs: the status header is read from the first 256 KiB, so multi-MiB `requirements.md` files work; tasks are read even when the spec header is missing.
 - Split documents: when `requirements.md` or `tasks.md` is not at the spec root, the generator reads `requirements/requirements.md` and `tasks/tasks.md` (indexes); the plan body is the files of the index table, in table order. Links outside the spec folder, symbolic links included, are ignored. Plan files not yet listed in the index table are still counted (wave from their headings, fields or file name) with a warning to add their row.
+- `asdd-panel`: a toast says to type `/asdd-panel` when the terminal is too narrow for the panel to open by itself.
+- `.claude-plugin/marketplace.json`: this repository is a plugin marketplace (`asdd` and `asdd-panel`).
 - Tests with `node:test` (`npm test`).

@@ -108,7 +108,7 @@ const ABRIR = {
  * rutas ya resueltas (absolutas), así que se buscan por el final de la ruta.
  */
 function proyecto(on: On, inicial: Ficheros) {
-  const p = { ficheros: inicial, abiertos: [] as string[] }
+  const p = { ficheros: inicial, abiertos: [] as string[], estrecho: false }
   const buscar = (ruta: string) => Object.keys(p.ficheros).find(k => ruta === k || ruta.endsWith(`/${k}`))
   on('fs.exists', (_, e) => ({ value: buscar(e.path) !== undefined }))
   on('fs.read', (_, e) => {
@@ -123,7 +123,7 @@ function proyecto(on: On, inicial: Ficheros) {
   on('command.register', () => ({ value: { command: 'asdd-panel' } }))
   on('ui.open', (_, e) => {
     p.abiertos.push(e.id)
-    return { value: { isPlaced: true } }
+    return { value: p.estrecho ? { isPlaced: false, reason: 'terminal estrecho' } : { isPlaced: true } }
   })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   return p
@@ -212,4 +212,30 @@ test('sin JSON todavía, o con un JSON roto, explica qué pasa en vez de rompers
   ui = await $.ui.mount({ ...PANEL, surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /formato de estado desconocido/ })).toBeDefined()
   await ui.unmount()
+})
+
+test('si el terminal es estrecho y el panel queda esperando, avisa de /asdd-panel', async ($, on) => {
+  const p = proyecto(on, { '.claude/specs': '', '.claude/state/estado-asdd.json': JSON.stringify(ESTADO) })
+  p.estrecho = true
+  const avisos: string[] = []
+  on('ui.toast', (_, e) => {
+    avisos.push(e.text)
+    return { value: undefined }
+  })
+  await $.session.start({ cwd: '/proyecto', surface: 'terminal', isInteractive: true })
+  expect(avisos).toEqual([
+    'Panel del pipeline ASDD listo: escribe /asdd-panel para verlo (abierto solo necesita 144 columnas)',
+  ])
+  expect(p.abiertos).toEqual(['asdd-panel'])
+})
+
+test('si el panel se coloca, no avisa', async ($, on) => {
+  proyecto(on, { '.claude/specs': '', '.claude/state/estado-asdd.json': JSON.stringify(ESTADO) })
+  const avisos: string[] = []
+  on('ui.toast', (_, e) => {
+    avisos.push(e.text)
+    return { value: undefined }
+  })
+  await $.session.start({ cwd: '/proyecto', surface: 'terminal', isInteractive: true })
+  expect(avisos).toEqual([])
 })
