@@ -1,7 +1,7 @@
 {
   "name": "asdd",
-  "description": "Agentic Specification-Driven Development framework for Claude Code. Provides 13 specialized agents, pipeline hooks (agent chaining plus asynchronous pipeline-status tracking), 5 discovery skills, quality-gate and pipeline-status rules, and a dependency-free status generator (estado-asdd.json) to orchestrate AI-driven software development from intent to production.",
-  "version": "1.0.0",
+  "description": "Agentic Specification-Driven Development framework for Claude Code. Provides 13 specialized agents, pipeline hooks (agent chaining plus asynchronous pipeline-status tracking), 5 discovery skills, quality-gate, pipeline-status and large-document (split and index) rules, and a dependency-free status generator (estado-asdd.json) to orchestrate AI-driven software development from intent to production.",
+  "version": "1.1.0",
   "author": {
     "name": "FFactory Team",
     "email": "edwin@ffactory.io"

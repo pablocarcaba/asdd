@@ -53,6 +53,15 @@ At the prompt of a Claude Code terminal session:
 
 or from a shell: `claude plugin install asdd --marketplace pablocarcaba/asdd`. The pipeline status side panel is a separate plugin: `/plugin install asdd-panel --marketplace pablocarcaba/asdd`.
 
+## Large Documents (documentos grandes)
+
+Base documents (`capability.md`, `requirements.md`, `design.md`, `tasks.md`, `domain-model.md`…) must stay navigable as they grow:
+- **Above 60 KB:** the writing agent creates or regenerates a condensed index, `<doc>-index.md`. It has a section map with line numbers and one card per item with `<doc>:L<n>` references.
+- **Above 200 KB, or for a self-contained block over 40 KB:** blocks move to annexes named `<doc>-anexo-<letter>-<topic>.md`.
+- **Reading:** agents read the index first, and treat it as stale if its source revision does not match.
+
+This is a general rule for every ASDD project. It is defined in [`rules/documentos-grandes.md`](rules/documentos-grandes.md) and summarised in every agent.
+
 ## Pipeline Status (estado del pipeline)
 
 Every spec (`requirements.md`) and every task (the `tareas` list in `tasks.md`) carries a YAML status header from the first draft: `id`, `titulo`, `estado` (`borrador` · `validada` · `aprobada` · `en_curso` · `implementada`), `nivel` (S/M/L), `puertas` and `version`. The format, and which agent may write each transition, is defined in [`rules/estado-pipeline.md`](rules/estado-pipeline.md). Only the person sets `aprobada`, in git.

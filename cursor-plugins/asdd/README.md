@@ -11,7 +11,7 @@ See [plugin.json](.cursor-plugin/plugin.json) for metadata (`displayName`, versi
 | **Agents** | 13 subagent prompts in [`agents/`](agents/) — discovery through security, observability, devops, refactor, and knowledge. Order and usage: [`agents/README.md`](agents/README.md). |
 | **Commands** | Slash prompts in [`commands/`](commands/) (filename stem = command name). |
 | **Skills** | 5 optional skills in [`skills/`](skills/) (anti-patterns, BMC, prioritization, domain language, user-story decomposition). |
-| **Rules** | Bundled [`rules/quality-gates.mdc`](rules/quality-gates.mdc) (`inclusion: always`) — copy or merge into the **project** `.cursor/rules/` when you adopt gates. |
+| **Rules** | Bundled [`rules/quality-gates.mdc`](rules/quality-gates.mdc) (`inclusion: always`) and [`rules/documentos-grandes.mdc`](rules/documentos-grandes.mdc) (split and index large documents) — copy or merge into the **project** `.cursor/rules/` when you adopt gates. |
 | **Hooks** | [`hooks/hooks.json`](hooks/hooks.json) registers a `subagentStop` command hook that runs [`hooks/asdd-pipeline-router.sh`](hooks/asdd-pipeline-router.sh) for matchers `asdd-[a-z-]+-agent`. Point `command` at the installed script path and ensure it is executable. |
 
 ## Slash commands

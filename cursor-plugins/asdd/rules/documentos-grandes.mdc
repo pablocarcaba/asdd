@@ -1,0 +1,59 @@
+---
+description: Large documents — split and index (documentos grandes)
+alwaysApply: true
+---
+
+# Large Documents: Split and Index (documentos grandes)
+
+Base project documents grow with every revision: `intent.md`, `capability.md`, `requirements.md`, `design.md`, `tasks.md`, `domain-model.md` and the reports. When they grow too large, agents waste context reading them whole and lose fidelity. Every agent that **writes** one of these documents MUST keep it navigable, and every agent that **reads** one MUST use its index first.
+
+This is a general rule for every ASDD project.
+
+## Thresholds
+
+| Document size | Required action |
+|---|---|
+| ≤ 60 KB (about 1,000 lines) | Nothing. |
+| > 60 KB | Create or refresh a **condensed index**: `<doc>-index.md`. |
+| > 200 KB, or a self-contained block > 40 KB | Also **split** the block(s) into **annexes**: `<doc>-anexo-<letter>-<topic>.md`. |
+
+Self-contained blocks that are good annex candidates include an API catalog, a legacy-to-new mapping, per-wave task lists, long glossaries, screen inventories and data dictionaries.
+
+## Condensed index — `<doc>-index.md`
+
+The index is a **navigation summary, not a new source of truth**. It is the file downstream agents read first. They then open only the sections of the original they need.
+
+Target size: 25–40 KB.
+
+Required structure:
+
+1. **Header block**:
+   - **Origen:** source file and its revision or version, e.g. `capability.md rev. 56 (D-01…D-55)`.
+   - **Generado:** date and agent.
+   - Score and status, when the source has them.
+   - **Uso:** "Resumen navegable, no fuente nueva. Ante cualquier duda manda `<doc>` y, dentro de él, la decisión del PO más reciente."
+   - **Abreviaturas** used in the index.
+2. **Mapa del documento:** every top-level section of the source with its start line, e.g. `Decisiones L1759 · Open Questions L2207`, plus a `grep -n` recipe for locating repeated items such as `^- \*\*D-xx`.
+3. **Reglas transversales:** cross-cutting rules, roles and permissions, invariants. One line each, with its decision IDs.
+4. **One card per item** (capability, requirement, ADR, task wave…):
+   - ID, one-line summary, status, slice or wave.
+   - Decision IDs.
+   - Reference to the source as `<doc>:L<n>`, or `L<x>-<y>` for ranges.
+5. **Contradicciones / abiertas:** internal contradictions and open questions found while indexing, with references. The index lists them; it never resolves them.
+
+## Annexes — `<doc>-anexo-<letter>-<topic>.md`
+
+Example: `design-anexo-a-mapeo-legado.md`, `design-anexo-b-api.md`.
+
+- The main document keeps a short summary of the block, plus a link: `Ver <doc>-anexo-b-api.md`.
+- Each annex starts with: its parent document and revision, its scope, and what stays in the parent.
+- Annexes have the same authority as the parent document. Decisions still live in the parent's decision log.
+- Never duplicate content between the parent and an annex.
+
+## Maintenance
+
+- Line references are valid **only for the revision named in the index header**.
+- An agent that produces a new revision of an indexed document MUST regenerate the index in the same run. If it cannot, it MUST mark the index header **`DESACTUALIZADO`** (stale) and report it.
+- An agent that reads an index whose `Origen` revision does not match the source MUST treat it as stale: it uses the source directly and reports the mismatch.
+- The index never fixes contradictions in the source. Only the PO or the owning agent does, through the normal decision flow.
+- An index or annex MUST NOT replace an artifact that the pipeline requires. `capability.md`, `requirements.md`, `design.md` and `tasks.md` always exist as the canonical entry points.
